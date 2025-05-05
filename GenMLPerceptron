@@ -1,0 +1,231 @@
+import java.util.*;
+import java.util.stream.*;
+
+public class GeneticMLP {
+    private static final Random rand = new Random();
+    
+    // Класс для представления нейронной сети
+    static class NeuralNetwork {
+        double[][] inputWeights;
+        double[][] hiddenWeights;
+        double[] hiddenBias;
+        double[] outputBias;
+        double fitness;
+        
+        // Инициализация сети (2 входных нейрона, 3 скрытых, 1 выходной)
+        NeuralNetwork() {
+            inputWeights = new double[2][3];
+            hiddenWeights = new double[3][1];
+            hiddenBias = new double[3];
+            outputBias = new double[1];
+            randomizeWeights();
+        }
+        
+        // Случайная инициализация весов
+        void randomizeWeights() {
+            for (int i = 0; i < inputWeights.length; i++) {
+                for (int j = 0; j < inputWeights[i].length; j++) {
+                    inputWeights[i][j] = rand.nextDouble() * 2 - 1;
+                }
+            }
+            
+            for (int i = 0; i < hiddenWeights.length; i++) {
+                for (int j = 0; j < hiddenWeights[i].length; j++) {
+                    hiddenWeights[i][j] = rand.nextDouble() * 2 - 1;
+                }
+            }
+            
+            for (int i = 0; i < hiddenBias.length; i++) {
+                hiddenBias[i] = rand.nextDouble() * 2 - 1;
+            }
+            
+            for (int i = 0; i < outputBias.length; i++) {
+                outputBias[i] = rand.nextDouble() * 2 - 1;
+            }
+        }
+        
+        // Сигмоидальная функция активации
+        double sigmoid(double x) {
+            return 1 / (1 + Math.exp(-x));
+        }
+        
+        // Прямое распространение (предсказание)
+        double predict(double[] inputs) {
+            double[] hiddenOutputs = new double[hiddenBias.length];
+            
+            // Вычисляем выходы скрытого слоя
+            for (int i = 0; i < hiddenOutputs.length; i++) {
+                double sum = hiddenBias[i];
+                for (int j = 0; j < inputs.length; j++) {
+                    sum += inputs[j] * inputWeights[j][i];
+                }
+                hiddenOutputs[i] = sigmoid(sum);
+            }
+            
+            // Вычисляем выход сети
+            double output = outputBias[0];
+            for (int i = 0; i < hiddenOutputs.length; i++) {
+                output += hiddenOutputs[i] * hiddenWeights[i][0];
+            }
+            
+            return sigmoid(output);
+        }
+        
+        // Скрещивание двух сетей
+        static NeuralNetwork crossover(NeuralNetwork a, NeuralNetwork b) {
+            NeuralNetwork child = new NeuralNetwork();
+            
+            // Скрещивание весов входного слоя
+            for (int i = 0; i < child.inputWeights.length; i++) {
+                for (int j = 0; j < child.inputWeights[i].length; j++) {
+                    child.inputWeights[i][j] = rand.nextBoolean() ? 
+                        a.inputWeights[i][j] : b.inputWeights[i][j];
+                }
+            }
+            
+            // Скрещивание весов скрытого слоя
+            for (int i = 0; i < child.hiddenWeights.length; i++) {
+                for (int j = 0; j < child.hiddenWeights[i].length; j++) {
+                    child.hiddenWeights[i][j] = rand.nextBoolean() ? 
+                        a.hiddenWeights[i][j] : b.hiddenWeights[i][j];
+                }
+            }
+            
+            // Скрещивание смещений
+            for (int i = 0; i < child.hiddenBias.length; i++) {
+                child.hiddenBias[i] = rand.nextBoolean() ? 
+                    a.hiddenBias[i] : b.hiddenBias[i];
+            }
+            
+            for (int i = 0; i < child.outputBias.length; i++) {
+                child.outputBias[i] = rand.nextBoolean() ? 
+                    a.outputBias[i] : b.outputBias[i];
+            }
+            
+            return child;
+        }
+        
+        // Мутация сети
+        void mutate(double mutationRate) {
+            for (int i = 0; i < inputWeights.length; i++) {
+                for (int j = 0; j < inputWeights[i].length; j++) {
+                    if (rand.nextDouble() < mutationRate) {
+                        inputWeights[i][j] += rand.nextGaussian() * 0.1;
+                    }
+                }
+            }
+            
+            for (int i = 0; i < hiddenWeights.length; i++) {
+                for (int j = 0; j < hiddenWeights[i].length; j++) {
+                    if (rand.nextDouble() < mutationRate) {
+                        hiddenWeights[i][j] += rand.nextGaussian() * 0.1;
+                    }
+                }
+            }
+            
+            for (int i = 0; i < hiddenBias.length; i++) {
+                if (rand.nextDouble() < mutationRate) {
+                    hiddenBias[i] += rand.nextGaussian() * 0.1;
+                }
+            }
+            
+            for (int i = 0; i < outputBias.length; i++) {
+                if (rand.nextDouble() < mutationRate) {
+                    outputBias[i] += rand.nextGaussian() * 0.1;
+                }
+            }
+        }
+    }
+    
+    public static void main(String[] args) {
+        // Параметры генетического алгоритма
+        int populationSize = 50;
+        int generations = 100;
+        double mutationRate = 0.1;
+        double crossoverRate = 0.7;
+        int elitismCount = 2;
+        
+        // Создаем обучающие данные (проблема "исключающего или")
+        double[][][] trainingData = {
+            {{0, 0}, {0}},
+            {{0, 1}, {1}},
+            {{1, 0}, {1}},
+            {{1, 1}, {0}}
+        };
+        
+        // Инициализация популяции
+        List<NeuralNetwork> population = new ArrayList<>();
+        for (int i = 0; i < populationSize; i++) {
+            population.add(new NeuralNetwork());
+        }
+        
+        // Основной цикл эволюции
+        for (int gen = 0; gen < generations; gen++) {
+            // Вычисление fitness для каждой сети
+            for (NeuralNetwork net : population) {
+                double error = 0;
+                for (double[][] example : trainingData) {
+                    double output = net.predict(example[0]);
+                    error += Math.pow(output - example[1][0], 2);
+                }
+                net.fitness = 1 / (1 + error); // Чем меньше ошибка, тем выше fitness
+            }
+            
+            // Сортировка популяции по fitness
+            population.sort((a, b) -> Double.compare(b.fitness, a.fitness));
+            
+            // Вывод лучшего результата
+            NeuralNetwork best = population.get(0);
+            System.out.printf("Поколение %d: Лучшая fitness = %.4f%n", gen, best.fitness);
+            
+            // Создание нового поколения
+            List<NeuralNetwork> newPopulation = new ArrayList<>();
+            
+            // Элитизм - сохраняем лучшие особи
+            for (int i = 0; i < elitismCount; i++) {
+                newPopulation.add(population.get(i));
+            }
+            
+            // Заполняем оставшуюся часть популяции
+            while (newPopulation.size() < populationSize) {
+                // Селекция (турнирная)
+                NeuralNetwork parent1 = tournamentSelection(population);
+                NeuralNetwork parent2 = tournamentSelection(population);
+                
+                // Скрещивание
+                NeuralNetwork child = NeuralNetwork.crossover(parent1, parent2);
+                
+                // Мутация
+                if (rand.nextDouble() < crossoverRate) {
+                    child.mutate(mutationRate);
+                }
+                
+                newPopulation.add(child);
+            }
+            
+            population = newPopulation;
+        }
+        
+        // Тестирование лучшей сети
+        NeuralNetwork bestNetwork = population.get(0);
+        System.out.println("\nТестирование лучшей сети:");
+        for (double[][] example : trainingData) {
+            double prediction = bestNetwork.predict(example[0]);
+            System.out.printf("Вход: [%.0f, %.0f], Ожидаемый выход: %.0f, Предсказание: %.4f%n",
+                example[0][0], example[0][1], example[1][0], prediction);
+        }
+    }
+    
+    // Турнирная селекция
+    static NeuralNetwork tournamentSelection(List<NeuralNetwork> population) {
+        int tournamentSize = 3;
+        NeuralNetwork best = null;
+        for (int i = 0; i < tournamentSize; i++) {
+            NeuralNetwork contender = population.get(rand.nextInt(population.size()));
+            if (best == null || contender.fitness > best.fitness) {
+                best = contender;
+            }
+        }
+        return best;
+    }
+}
