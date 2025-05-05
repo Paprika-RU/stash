@@ -1,0 +1,117 @@
+Класс перцептрона
+
+import java.util.Arrays;
+import java.util.Random;
+
+public class DigitPerceptron {
+    private double[][] weights; // weights[output][input]
+    private double learningRate;
+    private Random random = new Random();
+
+    public DigitPerceptron(int inputSize, int outputSize, double learningRate) {
+        this.learningRate = learningRate;
+        this.weights = new double[outputSize][inputSize + 1]; // +1 для смещения
+        
+        // Инициализация весов случайными значениями
+        for (int i = 0; i < outputSize; i++) {
+            for (int j = 0; j <= inputSize; j++) {
+                weights[i][j] = random.nextDouble() * 0.1 - 0.05; // [-0.05, 0.05]
+            }
+        }
+    }
+
+    // Активационная функция сигмоида
+    private double sigmoid(double x) {
+        return 1.0 / (1.0 + Math.exp(-x));
+    }
+
+    // Предсказание (возвращает индекс выходного нейрона с максимальной активацией)
+    public int predict(double[] inputs) {
+        double maxActivation = -1;
+        int predictedDigit = -1;
+
+        for (int digit = 0; digit < weights.length; digit++) {
+            double sum = weights[digit][0]; // смещение
+            
+            for (int i = 0; i < inputs.length; i++) {
+                sum += weights[digit][i + 1] * inputs[i];
+            }
+            
+            double activation = sigmoid(sum);
+            if (activation > maxActivation) {
+                maxActivation = activation;
+                predictedDigit = digit;
+            }
+        }
+        
+        return predictedDigit;
+    }
+
+    // Обучение на одном примере
+    public void train(double[] inputs, int targetDigit) {
+        for (int digit = 0; digit < weights.length; digit++) {
+            double target = (digit == targetDigit) ? 1.0 : 0.0;
+            
+            // Вычисляем активацию
+            double sum = weights[digit][0]; // смещение
+            for (int i = 0; i < inputs.length; i++) {
+                sum += weights[digit][i + 1] * inputs[i];
+            }
+            double output = sigmoid(sum);
+            
+            // Корректировка весов
+            double error = target - output;
+            double gradient = output * (1 - output); // Производная сигмоиды
+            
+            weights[digit][0] += learningRate * error * gradient; // Обновление смещения
+            
+            for (int i = 0; i < inputs.length; i++) {
+                weights[digit][i + 1] += learningRate * error * gradient * inputs[i];
+            }
+        }
+    }
+}
+
+
+
+Генерация данных и обучение
+
+public class Main {
+    public static void main(String[] args) {
+        int inputSize = 100; // 10x10
+        int outputSize = 10; // цифры 0-9
+        double learningRate = 0.1;
+        
+        DigitPerceptron perceptron = new DigitPerceptron(inputSize, outputSize, learningRate);
+        
+        // Пример данных (в реальности нужно больше примеров)
+        double[][] trainingData = generateTrainingData();
+        int[] labels = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}; // метки цифр
+        
+        // Обучение (эпохи)
+        for (int epoch = 0; epoch < 100; epoch++) {
+            for (int i = 0; i < trainingData.length; i++) {
+                perceptron.train(trainingData[i], labels[i]);
+            }
+        }
+        
+        // Тестирование
+        double[] testDigit = generateTestDigit(); // например, цифра "3"
+        int predicted = perceptron.predict(testDigit);
+        System.out.println("Перцептрон распознал цифру: " + predicted);
+    }
+    
+    // Генерация тестовых данных (заглушка)
+    private static double[][] generateTrainingData() {
+        // В действительности здесь должна быть загрузка реальных данных
+        return new double[][] {
+            new double[100], // цифра 0
+            new double[100], // цифра 1
+            // ...
+        };
+    }
+    
+    private static double[] generateTestDigit() {
+        return new double[100]; // например, зашумлённая "4"
+    }
+}
